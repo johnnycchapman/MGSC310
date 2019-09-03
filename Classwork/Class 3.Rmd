@@ -1,0 +1,93 @@
+# Class 3
+ x <- 1
+ y <- 2
+ 
+ x * y
+ x^2
+sin(0) 
+
+# Sequence (start, finish, )
+seq(1, 10, 3)
+1:10
+
+mySeq <- 1:10
+str(mySeq)
+
+# vectors
+myVec <- c(20, 22, 88)
+myVec
+strVec <- c("hey", "you", "guys")
+strVec
+str(strVec)
+
+myVec2 <- c(1, "hey", 2)
+myVec2
+str(myVec2)
+
+# lists
+myList <- list(myVec2, mySeq)
+myList
+myList2 <- list(myList, 1:10)
+myList2
+
+myList[[1]]
+
+
+# factors
+birthmonth <- c("Dec", "April", "June", "Dec")
+birthmonth <- factor(birthmonth)
+birthmonth
+str(birthmonth)
+# Save factors as characters
+
+month_levels <- c("Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec")
+
+myFactor <- factor(birthmonth, 
+                  levels = month_levels)
+str(myFactor)
+myFactor
+
+# Missing values denoted by NA
+NA
+1 * NA
+1 + NA
+
+is.na(NA)
+sum(is.na(rep(NA, 100)))
+
+install.packages('tidyverse')
+library('tidyverse')
+
+rep( NA, 100) %>%
+  is.na()
+  
+  
+getwd()
+movies <- read.csv("C:/Users/chapm171/Documents/movie_metadata.csv",
+                  stringsAsFactors = FALSE)
+                  
+# filter
+summary(movies)            
+table(movies$language)
+movies_eng <- movies %>% filter(language == English)
+movies_eng
+
+# select
+moviesSub <- movies %>% select(gross, budget, movie_title, director_name)
+moviesSub
+head(moviesSub)
+dim(moviesSub)
+movies_after <- movies %>% select(gross, budget, movie_title, director_name, everything())
+
+library('magrittr')
+movies %<>% rename(director = director_name)
+names(movies)
+
+# mutate
+movies %<>% mutate(budgetM = budget / 1000000)
+summary(movies)
+hist(movies$budgetM)
+
+movies %<>% filter(budgetM < 400)
+hist(movies$budgetM)
+
