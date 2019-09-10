@@ -1,0 +1,30 @@
+install.packages('ballr')
+library('tidyverse')
+movies <- read.csv("movie_metadata.csv")
+
+num_rows <- dim(movies)[1]
+num_rows <- nrow(movies)
+num_rows
+
+
+set.seed(7)
+sample(1:10, 2)
+
+1:num_rows
+train_idx <- sample(1:num_rows, floor(0.75*num_rows))
+head(train_idx)
+
+
+movies_train <- movies %>% slice(train_idx)
+movies_train
+
+movies_test <- movies %>% slice(-train_idx)
+dim(movies_test)
+
+
+mod1 <- lm(gross ~ budget, data = movies_train)
+options(scipen = 9)
+summary(mod1)
+
+names(movies)
+
