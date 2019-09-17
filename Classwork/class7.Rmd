@@ -1,0 +1,47 @@
+
+install.packages('tidyverse')
+install.packages('magrittr')
+install.packages('ISLR')
+library('ISLR')
+library('magrittr')
+library('tidyverse')
+
+
+movies <- read.csv("movie_metadata.csv")
+
+
+data(Auto)
+mod1 <- lm(mpg ~ horsepower + I(horsepower^2),
+          data = Auto)
+summary(mod1)          
+
+
+mpg_50 <- mod1$coefficients[1] + mod1$coefficients[2]*50 + mod1$coefficients[3]*50*50
+mpg_50
+
+
+library('margins')
+margins(mod1, at = list(horsepower = seq(50, 200, by = 10)))
+cplot(mod1, x = "horsepower", what = "prediction", 
+      scatter = TRUE, xlab = "Horsepower", ylab = "mpg")
+
+
+# predictions
+preds <- predict(mod1)
+
+preds_DF <- data.frame(
+  preds = predict(mod1),
+  resids = mod1$residuals
+  Auto
+)
+head(preds_DF)
+
+sum(preds_DF$resids)
+
+# predicted true plots
+ggplot(preds_DF, aes(x = mpg, y = preds)) +
+  geom_point() + xlim(10, 40) + ylim(10,40) +
+  geom_abline(intercept = 0, slope = 1, color = "red",
+              linetype = "dashed")
+  
+  
