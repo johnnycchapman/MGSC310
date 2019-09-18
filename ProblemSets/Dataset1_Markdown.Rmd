@@ -1,0 +1,152 @@
+---
+title: "Dataset 1"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library(readr)
+library('tidyverse')
+library('ggthemes')
+```
+
+### Question A:
+A note on directories. To see the curent working directory – execute the code getwd(). Let’s set our current working directory to the current location of our project file. This should happen by default if we are using R project files.
+
+
+```{r}
+getwd()
+#setwd("C:/Users/johnnychapman/Desktop/Chapman/FALL19/MGSC310")
+```
+
+### Question B:
+Download the Top 5000 movies on IMDB from the following link: 
+
+
+```{r}
+movies <- read.csv("Datasets/movie_metadata.csv")
+```
+
+
+### Question C:
+What are the dimensions of the dataset? Programatically determine this using a function.
+
+
+```{r}
+dim(movies)
+```
+
+
+### Question D:
+What are the names of the variables in the data set? Hint: use the function names here.
+
+
+```{r}
+names(movies)
+```
+
+
+### Question E:
+Use the package ggplot2 to create a scatterplot of IMDB on the x-axis and movie budgets on the y-axis.
+
+```{r}
+ggplot(movies, aes(x = imdb_score, y = budget)) +
+  geom_point() +
+  labs(x = "IMDB Score", y = "Movie Budget", title = "IMDB Score and Movie Budget") + 
+  theme_minimal()
+```
+
+
+### Question F: 
+It looks like there are some outliers in terms of budget. The highest budget movie of all time was Pirates of the Caribbean: On Stranger Tides which cost 387.8m. Any movies with a budget higher than this must be a data anomaly. Run the code below to remove rows of movies which cost more than 400m to produce.
+Now how many movies do we have in our data set?
+
+
+```{r}
+movies <- movies %>% filter(budget < 400000000) 
+dim(movies) 
+```
+There are 4539 Movies under $400 million in budget
+
+
+### Question G: 
+Use stat_smooth() to create a trendline to the above figure. Is there a relationship between IMDB score and budget?
+
+
+```{r}
+ggplot(movies, aes(x = imdb_score, y = budget)) +
+  geom_point() +
+  labs(x = "IMDB Score", y = "Movie Budget", title = "IMDB Score and Movie Budget") + 
+  theme_minimal() +
+  stat_smooth()
+```
+
+
+### Question H: 
+Use facet_wrap() to create sub-plots of relationship between IMDB Score and Budget. (Note, within the function facet_wrap() use the option , scales = "free" to allow the x-axes and y-axes to vary per sub-plot.For which content ratings do we see the strongest relationship between budget and IMDB score?
+
+
+```{r}
+ggplot(movies, aes(x = imdb_score, y = budget)) +
+  geom_point() +
+  labs(x = "IMDB Score", y = "Movie Budget", title = "IMDB Score and Movie Budget") + 
+  theme_minimal() +
+  stat_smooth() + 
+  facet_wrap(~content_rating, scales = "free")
+```
+
+
+From these graphs, the content rating that shows the strongest relationship between Budget and IMDB Score seems to be PG-13. It shows a slight, steady incline in movie rating as the overall budget increases. 
+
+### Question I: 
+Install the R package ggrides to produce ridgeline density plots of simplified genre plots using the code below.
+
+
+```{r}
+library('ggridges')
+movies <- movies %>% 
+  mutate(genre_main = unlist(map(strsplit(as.character(movies$genres),"\\|"),1)),
+                            grossM = gross / 1000000,
+                            budgetM = budget / 1000000)
+
+ggplot(movies, aes(x = grossM, y = genre_main, fill = genre_main)) + 
+  geom_density_ridges() + 
+  scale_x_continuous(limits = c(0, 500)) +
+  labs(x = "Box Office Gross (USD Millions)", 
+       y = "Main Genre")
+```
+
+
+### Question J: 
+In a series of graphs (at least two) explore the relationship between budget and gross.
+
+```{r}
+ggplot(movies, aes(x = grossM, y = budgetM)) +
+  geom_point() + 
+  geom_smooth() + 
+  labs(x = "Box Office Gross (USD Millions)", y = "Movie Budget (USD Millions)", title = "Movie Budget and Gross in Millions")+
+  theme_minimal()
+```
+
+This graph shows a positive increase in Box Office Gross and Movie Budget. 
+
+```{r}
+ggplot(movies, aes(x = budgetM, y = grossM)) +
+  geom_point() + 
+  geom_smooth() + 
+  labs(x = "Movie Budget (USD Millions)", y = "Box Office Gross (USD Millions)", title = "Movie Budget and Gross in Millions") +
+  theme_minimal()
+```
+This graph above does not show as strong first graph, but still shows a slight increase in Box office Gross with and increase in Movie Budget.
+
+
+
