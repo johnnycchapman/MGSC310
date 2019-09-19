@@ -1,0 +1,54 @@
+library('tidyverse')
+
+library('ISLR')
+
+# remove from global environment
+rm(list = ls())
+
+data(Auto)
+
+mod1 <- lm(mpg ~ horsepower + I(horsepower^2),
+          data = Auto)
+Auto_sub <- data.frame(
+  resids = mod1$residuals,
+  hats = hatvalues(mod1),
+  Auto
+) %>% arrange(desc(hats))     
+          
+pirateplot(horsepower ~ cylinders,
+            Auto_sub)
+
+
+Auto_sub %>% slice(1:4)
+Auto_sub %>% top_n(wt = -resids, n = 5)
+
+# lower 5
+Auto_sub %>% top_n(wt = -resids, n = 5)
+
+
+hatvalues(mod1)
+
+plot(mod1)
+
+# collinearity
+x1 <- rnorm(1000, mean = 1, sd = 2)
+summary(x1)
+var(x1)
+x2 <- x1 + rnorm(1000, mean = 0, sd = 0.002)
+y <- 3 + x1 + 2*x2 + rnorm(1000, mean = 0, sd = 1)
+DF <- data.frame(x1, x2, y)
+View(DF)
+
+cor(DF)
+
+
+mod2 <- lm(y ~ x1 + x2, data = DF)
+summary(mod2)
+
+data(Default)
+head(Default)
+
+default_DF <- Default %>% mutate(default_binary = 
+                                  ifelse(default == "Yes",
+                                  1, 0))
+                                  
