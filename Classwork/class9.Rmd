@@ -1,0 +1,59 @@
+library('ISLR')
+library('tidyverse')
+data(Default)
+
+summary(Default)
+
+# create binary dummy variable
+Default <- Default %>% mutate(
+  default_binary = ifelse(default == "Yes",1,0)
+)
+head(Default)
+
+
+mod1 <- lm(default_binary ~ balance,
+          data = Default)
+          
+# create dataframe with predicted values
+preds_DF <- data.frame(
+  preds = predict(mod1),
+  Default
+)    
+
+head(preds_DF)
+
+ggplot(pred_DF, aes(x = balance, y = default_binary)) +
+  geom_point(alpha = 1/10) + 
+  geom_abline(intercept = mod1$coefficients[1],
+              slope = mod1$coefficients[2])
+
+# logit
+# generalized linear models
+glm_fit <- glm(default_binary ~ balance, 
+              data = Default,
+              family = binomial)
+              
+options(scipen = 10)
+summary(glm_fit)              
+# Increasing balance by 1, increases your log odds by 0.005
+
+# beta null                         
+top <- exp(glm_fit$coefficients[1] + 
+        glm_fit$coefficients[2] * 1000)
+
+prob_1000 <- top / (1 + top)
+prob_1000
+
+
+top <- exp(glm_fit$coefficients[1] + 
+        glm_fit$coefficients[2] * 2000)
+
+prob_2000 <- top / (1 + top)
+prob_2000
+
+
+preds_DF <- data.frame(
+  scores = predict(glm_fit, type = "response"),
+  Default
+)
+head(preds_DF)
