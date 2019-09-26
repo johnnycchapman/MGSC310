@@ -1,0 +1,65 @@
+library('tidyverse')
+library(ISLR)
+
+data(Default)
+logit_fit1 <- glm(default ~ student,
+                  data = Default,
+                  family = binomial)
+summary(logit_fit1)
+
+# generate log odds ratio for a student that defaults
+exp(logit_fit1$coefficients[2])
+
+# Students are 49.9% more likely to default
+# or 
+# library(jtools)
+# summ(logit_fit1, exp = TRUE)
+
+# multiple logistic regression models
+logit_fit2 <- glm(default ~ student + 
+                  income + balance,
+                  data = Default,
+                  family = binomial)
+options(scipen = 9)                  
+summary(logit_fit2)
+exp(logit_fit2$coefficients)
+# 1 - (odds ratio less than 1)
+# students are 48% less likely to default
+
+
+logit_fit3 <- glm(default ~ balance,
+                  data = Default,
+                  family = binomial)
+                  
+preds_DF <- data.frame(
+  scores_mod3 = predict(logit_fit3, type = "response"),
+  Default
+)                  
+
+ggplot(preds_DF, aes(x = balance, y = scores_mod3)) +
+  geom_point(aes(color = default,
+                  shape = default), size = 4)
+  
+preds_DF <- preds_DF %>% mutate(
+  class_preds05 = ifelse(scores_mod3 > 0.5, 1, 0)
+)  
+head(preds_DF)
+
+
+# confusion matrix
+table(preds_DF$default, preds_DF$class_preds05)
+
+
+# ROC (receiver operator curves) Curve, AUC
+
+install.packages('plotROC')
+library(plotROC)
+
+
+p <- ggplot(preds_DF, aes(m = scores_mod3,
+                    d = default)) +
+      geom_roc(cutoffs.at = c(.99, .9, .8, .5, .3, .1, 0))
+      
+# calculate AUC (Area Under Curve); Closer to 1 is a good model
+calc_auc(p)
+
