@@ -1,0 +1,68 @@
+
+library(tidyverse)
+
+
+# randomly assigning each data point to one k folds
+
+# k fold corss validation
+library(caret)
+?createFolds
+library(ISLR)
+data(Auto)
+Auto_sub <- Auto %>% select(-name)
+folds <- createFolds(Auto_sub$mpg, k = 5,
+                     list = FALSE)
+str(folds)
+
+Auto_sub <- data.frame(
+  Auto_sub,
+  folds = folds,
+  preds_KFCV = NA
+)
+head(Auto_sub)
+
+
+preds_DF_KFCV <- data.frame(
+  folds = folds,
+  preds_KFCV = NA
+)
+
+
+
+# k fold CV
+for(i in 1:5){
+  mod <- lm(mpg ~ ., 
+            data = Auto_sub %>% 
+            filter(folds != i))
+  summary(mod)
+  
+  preds <- predict(mod, 
+                   newdata = Auto_sub %>% 
+                    filter(folds == i))
+  preds_DF_KFCV[preds_DF_KFCV$folds == i, "preds_KFCV"] <- preds 
+}
+
+head(preds_DF_KFCV)
+
+preds_DF_KFCV <- data.frame(
+  true = Auto_sub$mpg,
+  preds_DF_KFCV
+)
+head(preds_DF_KFCV)
+
+RMSE(preds_DF_KFCV$true, preds_DF_KFCV$preds_KFCV)
+
+
+# bootstrapping
+B <- 100
+n_boot <- 200
+coef_boot <- NULL
+for(i in 1:B){
+  idx <- sample(1:nrow(Auto_sub), size = n_boot)
+  mod <- lm(mpg ~ ., 
+            data = Auto_sub %>% slice(idx))
+  coef_boot[i] <- mod$coefficients[2]
+}
+coef_boot
+hist(coef_boot)
+
