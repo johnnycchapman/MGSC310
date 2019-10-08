@@ -1,0 +1,72 @@
+library(tidyverse)
+
+library(caret)
+library(ISLR)
+
+data(Default)
+
+logit_fit <- glm(default ~ balance,
+                 data = Default,
+                 family = binomial)
+preds_DF <- data.frame(
+  scores = predict(logit_fit, type = "response"),
+  true = factor(Default$default, levels = c("Yes", "No"))
+)                 
+head(preds_DF)
+
+levels(preds_DF$true)
+
+creditLift <- caret::lift(true ~ scores,
+                   data = preds_DF)
+                   
+xyplot(creditLift)                   
+                   
+install.packages('ROSE')                   
+library(ROSE)
+
+table(Default$default)
+
+
+# Downsampling
+# 2 * 333 (people that default)
+# . uses every other variable
+rose_down <- ROSE(default ~ .,
+                  Default,
+                  N = 10000,
+                  p = 0.5)
+head(rose_down)                  
+
+table(rose_down$data$default)
+
+glm(default ~ .,
+    data = rose_down$data,
+    family = binomial)
+options(scipen = 2)
+  
+# Leave one out cross validation 
+preds_LOOCV <- NULL
+num_rows <- nrow(Auto)
+
+Auto_sub <- Auto[,-9]
+
+mods_LOOCV <- list() 
+for(i in 1:num_rows){
+  mod <- lm(mpg ~ ., 
+            data = Auto_sub %>% slice(-i))
+  preds_LOOCV[i] <- predict(mod, newdata = Auto_sub %>% slice(i))
+  mods_LOOCV[[i]] <- mod
+}
+preds_LOOCV[1]
+mods_LOOCV[[33]]
+
+mod_insample <- lm(mpg ~ .,
+                   data = Auto_sub)
+
+preds_DF <- data.frame(
+  preds_LOOCV,
+  preds_insample = predict(mod_simple)
+  Auto_sub
+)
+RMSE(preds_DF$preds_LOOCV, preds$mpg)
+RMSE(preds_DF$preds_insample, preds_DF$mpg)
+
