@@ -1,0 +1,47 @@
+library(tidyverse)
+library(ISLR)
+data(Auto)
+
+
+install.packages('leaps')
+library(leaps)
+
+?regsubsets
+
+mod_fwrd_stepwise <- regsubsets(mpg ~ 
+                               cylinders + displacement +
+                               horsepower + weight + 
+                               acceleration + year + origin,
+                               data = Auto,
+                               method = "forward")
+summary(mod_fwrd_stepwise)                               
+                               
+
+# Ridge regression 
+
+install.packages('glmnet')
+install.packages('glmnetUtils')
+
+library(glmnet)
+
+library(glmnetUtils)
+
+
+
+ridge_mod <- cv.glmnet(mpg ~ ., 
+          data = Auto %>% select(-name),
+          alpha = 0,
+          nfolds = 10)
+
+
+summary(ridge_mod)          
+plot(ridge_mod)
+
+
+install.packages('coefplot')
+
+library(coefplot)
+
+coefpath(ridge_mod)
+
+lm(mpg ~ ., Auto %>% select(-name))
