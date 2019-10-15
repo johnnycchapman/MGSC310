@@ -1,0 +1,255 @@
+---
+title: "Problem Set 6"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library('tidyverse')
+library(ROSE)
+```
+
+### Question A:
+Run the code below to clean the movies data frame and generate test and training sets of the clean data. Note we have created a variable top_director if a director is in the top 10% of film directors by number of films produced. We have also used the left_join() command to merge this variable back into our main dataset. We will explore this type of feature generation later in the course, but for now please you can take the code as given and run the code without fully understanding it.
+
+
+```{r}
+options(scipen = 50)
+set.seed(1861)
+movies <- read.csv("~/Desktop/Chapman/FALL19/MGSC310/Datasets/movie_metadata.csv")
+movies <- movies %>% filter(budget < 400000000) %>%
+  filter(content_rating != "",
+  content_rating != "Not Rated",
+  !is.na(gross))
+  
+movies <- movies %>%
+  mutate(genre_main = unlist(map(strsplit(as.character(movies$genres),"\\|"),1)),
+      grossM = gross / 1000000,
+      budgetM = budget / 1000000,
+      profitM = grossM - budgetM,
+      blockbuster = ifelse(grossM > 200,1,0))
+    
+movies <- movies %>% mutate(genre_main = fct_lump(genre_main,5),
+      content_rating = fct_lump(content_rating,3),
+      country = fct_lump(country,2),
+      cast_total_facebook_likes000s =
+    cast_total_facebook_likes / 1000,) %>%
+  drop_na()
+top_director <- movies %>%
+  group_by(director_name) %>%
+  summarize(num_films = n()) %>%
+  top_frac(.1) %>%
+  mutate(top_director = 1) %>%
+  select(-num_films)
+  
+movies <- movies %>%
+  left_join(top_director, by = "director_name") %>%
+  mutate(top_director = replace_na(top_director,0))
+  
+train_idx <- sample(1:nrow(movies),size = floor(0.75*nrow(movies)))
+movies_train <- movies %>% slice(train_idx)
+movies_test <- movies %>% slice(-train_idx)
+```
+
+
+### Question B:
+One concern we might have is that the distributions of the outcome we want to predict –
+in this case blockbuster – is different in the test and training sets. This can arise through
+random chance, but can affect our outcome. Use the mean() command to calculate the average
+number of blockbusters in the test and training sets. To test for whether this difference in
+means is statistically meaningful, use the t.test() command to calculate a statistical test
+where the null hypothesis is that the means are similar in both datasets. What is the p-value
+you calculate? What do you conclude from this p-value?
+
+```{r}
+t.test(movies_train$blockbuster,movies_test$blockbuster)
+
+```
+
+
+### Question C:
+Estimate a logit model with blockbuster as your dependent variable, and include budgetM,
+top_director, cast_total_facebook_likes000s, content_rating, and genre_main as
+your predictor variables. Use the summary command to display the output of your model.
+
+
+```{r}
+logit_fit1 <- glm(blockbuster ~ budgetM + top_director + cast_total_facebook_likes000s + content_rating + genre_main,
+                  data = movies_train,
+                  family = binomial)
+summary(logit_fit1)
+```
+
+
+### Question D:
+Interpret the coefficients on content_ratingR, genre_mainAdventure, and top_director.
+
+Top Director
+```{r}
+exp(logit_fit1$coefficients[3])
+```
+Having a top director is 83.6% more likely to be a blockbuster film.
+
+R Rated Film
+```{r}
+exp(logit_fit1$coefficients[6])
+```
+An rated R film is 83.7% less likely to be a blockbuster film.
+
+Adventure Film
+```{r}
+exp(logit_fit1$coefficients[8])
+```
+An adventure movie is 52.1 percent more likely to be a blockbuster film. 
+
+### Question E: 
+You are worried that the predictions from the model might be overfit if you only rely on the in-sample predictions. And you’re concerned that the test set might have high variance. Therefore you decide to implement leave-one-out-cross validation to estimate the predicted probabilities (scores). Using a for loop, generate LOOCV predicted probabilities for each observation in the training set, being sure to estimate the model on every observation in the training set except that observation. Store these predictions in the vector preds_LOOCV.
+
+
+```{r}
+preds_LOOCV <- NULL
+num_rows <- nrow(movies_train)
+mods_LOOCV <- list()
+for(i in 1:num_rows){
+  mod <- glm(blockbuster ~ budgetM + top_director + cast_total_facebook_likes000s + content_rating + genre_main,
+                  data = movies_train %>% slice(-i),
+                  family = binomial)
+  preds_LOOCV[i] <- predict(mod, newdata = movies_train %>% slice(i))
+}
+```
+
+
+### Question F: 
+Use the fitted model to generate predictions into the test and training sets.
+
+```{r}
+preds_test <- data.frame(preds = predict(logit_fit1, 
+                         newdata = movies_test, 
+                         type = "response"), 
+                         blockbuster = movies_test$blockbuster)
+
+preds_train <- data.frame(preds = predict(logit_fit1, 
+                         newdata = movies_train, 
+                         type = "response"), 
+                         blockbuster = movies_train$blockbuster)
+```
+
+
+### Question G: 
+Plot the three different ROC curves for the test predictions, the in-sample training predictions, and the LOOCV predictions. Describe the three ROC curves in relation to each other.
+
+```{r}
+library(plotROC)
+ptrain <- ggplot(preds_train, aes(m = preds, d = blockbuster)) +
+            geom_roc(labelsize = 3.5, cutoffs.at = c(0.99, 0.9, 0.7, 0.5, 0.3, 0.1, 0)) +
+            labs(title = "Train")
+            
+            
+ptest <- ggplot(preds_test, aes(m = preds, d = blockbuster)) +
+            geom_roc(labelsize = 3.5, cutoffs.at = c(0.99, 0.9, 0.7, 0.5, 0.3, 0.1, 0)) +
+            labs(title = "Test")
+plot(ptrain)
+```
+```{r}
+plot(ptest)
+```
+The ROC curve for the training data is slighly better than the test data. The test data appears to have more breaks and more of a slow increase to 1 than the training data. It compares the false positive rates to the true positive rates. The training data could also be overfit. 
+
+### Question H: 
+Calculate the AUC for the three models. Order the models in terms of performance. Why
+do you suppose they are ordered as they are?
+
+```{r}
+calc_auc(ptrain)
+```
+
+
+```{r}
+calc_auc(ptest)
+```
+The training data has a higher AUC than the test data. This is due to the fact the ROC plot is more fit in the training data. 
+
+
+### Question I: 
+Use the ROSE package to create a downsampled (N = 220, p = 1/2) and upsampled (N =
+5000, p = 1/2) versions of the trainind datasets. Estimate logit models against these datasets using the specification in e).
+
+```{r}
+rose_down <- ROSE(blockbuster ~ budgetM + top_director +
+                  cast_total_facebook_likes000s + content_rating + genre_main,
+                  movies_train,
+                  N = 220,
+                  p = 0.5)
+
+rose_up <- ROSE(blockbuster ~ budgetM + top_director +
+                  cast_total_facebook_likes000s + content_rating + genre_main,
+                  movies_train,
+                  N = 5000,
+                  p = 0.5)
+
+logit_down <- glm(blockbuster ~ budgetM + top_director +
+                  cast_total_facebook_likes000s + content_rating + genre_main,
+                  data = rose_down$data,
+                  family = "binomial")
+
+logit_up <- glm(blockbuster ~ budgetM + top_director +
+                  cast_total_facebook_likes000s + content_rating + genre_main,
+                  data = rose_up$data,
+                  family = "binomial")
+```
+
+
+### Question J: 
+Extra Credit: Create a data frame with the predicted probabilities using each of the three models above, predicted into the test set. Also calcualte predicted classes using their insample optimal threshold. Calculate the sensitivity and specificity for each model. Describe the differences between them and compare their usefulness for the problem for a studio that wants to identifying blockbuster films to promote them appropriately.
+
+```{r}
+partj_DF <- data.frame(preds_fit = predict(logit_fit1, 
+                         newdata = movies_test, 
+                         type = "response"),
+                       preds_up = predict(logit_up, 
+                         newdata = movies_test, 
+                         type = "response"),
+                       preds_down = predict(logit_down, 
+                         newdata = movies_test, 
+                         type = "response"))
+
+partj_DF <- partj_DF %>% mutate(class_preds_fit = ifelse(preds_fit > 0.5, 1, 0),
+                                class_preds_up = ifelse(preds_up > 0.5, 1, 0),
+                                class_preds_down = ifelse(preds_down > 0.5, 1, 0))
+
+
+
+table(movies_test$blockbuster,partj_DF$class_preds_fit)  
+table(movies_test$blockbuster,partj_DF$class_preds_up)  
+table(movies_test$blockbuster,partj_DF$class_preds_down)  
+```
+
+Model from C
+Sensitivity: 
+16/23 = 0.696 69.6%
+
+Specificity:
+869/909 = 0.956 95.6%
+
+Rose Up Model
+Sensitivity:
+47/169 = 0.278 27.8%
+
+Specificity:
+754/763 = 0.988 98.8%
+
+Rose Down Model
+Sensitivity:
+47/228 = 0.206 20.6%
+
+Specificity:
+695/704 = 0.987 98.7%

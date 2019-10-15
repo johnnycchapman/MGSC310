@@ -1,0 +1,206 @@
+---
+title: "Problem Set 4"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library('tidyverse')
+library('margins')
+library('magrittr')
+```
+
+## Question 1
+
+### A):
+Download the Top 5000 movies on IMDB from the following link: 
+
+
+```{r}
+movies <- read.csv("Datasets/movie_metadata.csv")
+```
+
+
+### B):
+Run the code below to filter out films with unreasonably large budgets. Also use the code to create new variables (mutate) that are simplified versions of the genres and budget variables.
+
+
+```{r}
+options(scipen = 10)
+set.seed(1861)
+movies <- movies %>% filter(budget < 4e+08) %>% filter(content_rating !=
+"", content_rating != "Not Rated") %>% drop_na(gross)
+movies <- movies %>% mutate(genre_main = unlist(map(strsplit(as.character(movies$genres),
+"\\|"), 1)), grossM = gross/1e+06, budgetM = budget/1e+06,
+profitM = grossM - budgetM, rating_simple = fct_lump(content_rating,
+n = 4), genre_main = factor(genre_main) %>% fct_drop())
+set.seed(1861)
+train_idx <- sample(1:nrow(movies), 0.8 * nrow(movies))
+movies_train <- movies %>% slice(train_idx)
+movies_test <- movies %>% slice(-train_idx)
+```
+
+
+### C):
+Estimate a linear model using the lm command with grossM on the left hand side, and
+imdb_score and budgetM on the right-hand side. Be sure to estimate on the training set. Use the summary command to show the summary of your model.
+
+
+```{r}
+mod1 <- lm(grossM ~ imdb_score + budgetM, data = movies)
+summary(mod1)
+```
+
+
+### D):
+Interpret the coefficient on budgetM. Holding fixed imdb_score, does spending more money on movies seem to have a net positive return on movie gross?
+
+
+Comparing a movie with the same imdb_score, we are able to estimate a $1 million increase in gross will lead to a $1.004 million increase in budget. 
+
+
+
+### E): 
+Now estimate a linear model using the lm command with grossM on the left hand side, and imdb_score, budgetM and the square of budgetM as controls. Be sure to estimate on the training set. Use the summary command to show the summary of your model
+
+
+```{r}
+mod2 <- lm(grossM ~ imdb_score + budgetM + I(budgetM^2), data = movies_train)
+summary(mod2)
+```
+
+
+### F): 
+The coefficients for budgetM indicates that a increase in budgetM will result in an 
+increase in grossM. The negative budgetM squared value indicates the declining rate of the increase on grossM. 
+
+
+
+
+### G):
+Let’s investigate the marginal impact of budget for different levels of budget. Use the margins command to calcuclate the marginal impact of an additional dollar of budget at budget levels of 25, 50, 75, 90, 100, 200, and 300 million. For which levels does it make sense to increase your movie’s budget?
+
+```{r}
+margins(mod2, at = list(budgetM = c(25, 50, 75, 90, 100, 200, 300)))
+```
+
+It makes sense to increase your movies budget if you are at the $25, $50, $75 million budget levels. This is because the marginal impact at these levels is greater than 1. 
+
+### H)
+Extra credit Use the effects option in the cplot command to plot the marginal impact of
+an additional dollar of budget for all levels of budget. What does the figure say regarding the
+impact of an additional dollar of budget revenue?
+
+```{r}
+cplot(mod2, x = "budgetM", what = "effect",
+      scatter = TRUE, xlab = "Budget (in millions)", ylab = "Marginal Impact")
+```
+
+      
+
+## Question 2: 
+
+### A): 
+Use the movies data and estimate a model predicting movie gross using imdb_score, budgetM, the square of budgetM and ratings_simple as independent variables. Use the relevel command to change the reference category of ratings to “R”. Print the summary of this regression table.
+
+```{r}
+movies_train %<>% mutate(rating_simple = 
+                     fct_lump(content_rating, n = 4))
+
+movies_train$rating_simple <- relevel(movies_train$rating_simple, ref = "R")
+mod3 <- lm(grossM ~ imdb_score + budgetM + I(budgetM^2) + rating_simple, 
+                    data = movies_train)
+summary(mod3)         
+```
+
+
+### B): 
+Interpret the coefficient on a movie rated G.
+
+The coefficient of rated G movies tells us that G-rated movies will earn $25.711 million more than a similar rated R movie.
+
+
+### C): 
+Use the predict function to generate the residuals and predictions in the test and training set.
+
+```{r}
+mod3_2 <- lm(grossM ~ imdb_score + I(budgetM^2) + rating_simple, 
+                    data = movies_test)
+                    
+                    
+preds_train <- predict(mod3, movies_train)
+preds_test <- predict(mod3, movies_test)
+
+preds_train_DF <- data.frame(
+  preds = preds_train,
+  true = movies_train$grossM,
+  resids = mod3$residuals
+)
+
+preds_test_DF <- data.frame(
+  preds = preds_test,
+  true = movies_test$grossM,
+  resids = mod3_2$residuals
+)
+
+                  
+```
+
+### D): 
+Plot the residuals against the predicted values in the test and training sets. Do our errors appear homoskedastic or heteroskedastic?
+
+```{r}
+ggplot(preds_train_DF, aes(x = resids, y = preds)) +
+  geom_point() +
+  labs(x = "Residual Values", y = "Predicted Values", title = "Train Residual vs Predicted Values")
+```
+Our errors appear to be heteroskedastic because the errors appear to be non-constant.    
+
+```{r}
+ggplot(preds_test_DF, aes(x = resids, y = preds)) +
+  geom_point() +
+  labs(x = "Residual Values", y = "Predicted Values", title = "Test Residual vs Predicted Values")
+```
+Our errors appear to be heteroskedastic because the errors appear to be non-constant. They are more heteroskedastic in the training data.   
+
+
+
+### E): 
+Plot the predicted versus true in the test and training set.
+
+```{r}
+ggplot(preds_train_DF, aes(x = preds, y = true)) +
+  geom_point() +
+  labs(x = "Predicted Values", y = "True Values", title = "Train Predictions vs True Values")
+```
+
+```{r}
+ggplot(preds_test_DF, aes(x = preds, y = true)) +
+  geom_point() +
+  labs(x = "Test Predicted Values", y = "True Values", title = "Test Predictions vs True Values")
+```
+
+### F): 
+Use the function below and the R2 function in the package caret to calculate in-sample and
+out-of-sample R2 and RMSE. Is the model overfit? And if so, how do we know?
+
+```{r}
+library("caret")
+RMSE <- function(t, p) {
+sqrt(sum(((t - p)^2)) * (1/nrow(t)))
+}
+
+RMSE(preds_test_DF$true, preds_test_DF$preds)
+```
+
+From this output we can understand that the model is overfitting. This is due to
+the fact that the RMSE is 0.
