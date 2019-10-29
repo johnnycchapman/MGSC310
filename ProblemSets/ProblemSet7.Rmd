@@ -1,0 +1,179 @@
+---
+title: "Problem Set 7"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library('tidyverse')
+library(leaps)
+library(glmnet)
+library(glmnetUtils)
+```
+
+### Question A:
+Navigate to the UCI Machine Learning website and download the data folder for the Bike
+Sharing Dataset. Read the file day.csv into R using read.csv or read_csv and store it as
+the object Bike_DF
+
+
+```{r}
+Bike_DF <- read.csv("~/Desktop/Chapman/FALL19/MGSC310/Datasets/day.csv")
+```
+
+
+### Question B:
+Do some basic data cleaning on Bike_DF to ensure factor variables are recorded as factors
+
+```{r}
+Bike_DF <- Bike_DF %>% mutate(season = factor(season),
+                              yr = factor(yr),
+                              mnth = factor(mnth),
+                              holiday = factor(holiday),
+                              weekday = factor(weekday),
+                              weathersit = factor(weathersit),
+                              workingday = factor(workingday)
+                              )
+```
+
+
+### Question C:
+Run the command sapply(Bike_DF, is.factor) to ensure the columns in your data frame
+that should be factors have been converted to factors appropriately.
+
+
+```{r}
+sapply(Bike_DF, is.factor) 
+```
+
+
+### Question D:
+Perform any feature transformation (creation of derived variables) that you feel is appropriate.
+
+```{r}
+Bike_DF <- Bike_DF %>% mutate(high_hum = ifelse(hum > 0.5, 1, 0),
+                              bad_weather = ifelse(as.numeric(weathersit) > 2, 1, 0))
+```
+
+
+### Question E: 
+Split our data into test and training splits of size 30%/70% each.
+
+
+```{r}
+train_idx <- sample(1:nrow(Bike_DF), size = floor(0.70*nrow(Bike_DF)))
+
+bike_train <- Bike_DF %>% slice(train_idx)
+bike_test <- Bike_DF %>% slice(-train_idx)
+```
+
+
+### Question F: 
+Fit a forward stepwise linear model on the training data with cnt as your outcome variable,and season, holiday, month, workingday, weathersit, temp, hum and windspeed as your predcitor varaibles. Save this as an object fwd_fit and run the summary command over it. What are the first five variables selected?
+
+
+```{r}
+mod_fwd_stepwise <- regsubsets(cnt ~ season + holiday + mnth + workingday + weathersit + temp + hum + windspeed,
+                               data = bike_train,
+                               method  = "forward")
+summary(mod_fwd_stepwise)    
+```
+The first 5 predictors are temp, weathersit3, season4, hum, and windspeed.
+
+
+
+### Question G: 
+Fit a backwards stepwise model using the same formula and data. What are the five predictor variables included in M5? Are they the same as the M5 model from forward stepwise? Why are we not guaranteed the same variables or order of selection in forward versus backward stepwise selection?
+
+```{r}
+mod_bwd_stepwise <- regsubsets(cnt ~ season + holiday + mnth + workingday + weathersit + temp + hum + windspeed,
+                               data = bike_train,
+                               method  = "backward")
+summary(mod_bwd_stepwise)      
+```
+The first 5 predictors are hum, season2, temp, season4, and windspeed. 
+
+We are not guaranteed same variables or order of selection because backwards stepwise starts with a model with all variables, eliminating one insignificant variable each time. Forward stepwise adds a variable to the model each time. So with forward stepwise you would get the most significant first, but in backward stepwise you would get most insignificant variables first. That is why same values are not guaranteed.
+
+### Question H: 
+Fit a Ridge model against the bike_train dataset. Call the plot function against the fitted model to see how MSE varies as we move λ.
+
+```{r}
+ridge_fit <- cv.glmnet(cnt ~ ., 
+          data = bike_train %>% select(-c(dteday,instant)),
+          alpha = 0)
+
+plot(ridge_fit)   
+```
+
+
+### Question I: 
+What are the values for lambda.min and lambda.1se? What is the meaning of each of these
+lambdas?
+
+```{r}
+ridge_fit$lambda.min
+```
+
+
+```{r}
+ridge_fit$lambda.1se
+```
+The lambda.min is the value of lambda that give the mean cross-validated error. The lambda.1se is the value of labda that is 1 standard error from the minimun. It makes sense that lambda.1se is a little bigger than lambda.min.
+
+### Question J: 
+Print the value of the coefficients at lambda.min and lambda.1se. What do you
+notice about the differenecs between the coefficients. (Note: you will need to type
+as.matrix(coef(ridge_fit, s = "lambda.min")) to convert the coefficient vector from a
+sparse data matrix to a matrix.
+
+```{r}
+as.matrix(coef(ridge_fit, s = "lambda.min")) 
+```
+
+
+```{r}
+as.matrix(coef(ridge_fit, s = "lambda.1se")) 
+```
+The coefficients of lambda one standard error will be farther from zero than the lammbda minimum value. 
+
+
+### Question K: 
+Estimate a Lasso model using the same model and data.
+
+```{r}
+lasso_mod <- 
+  cv.glmnet(cnt ~ ., 
+            data = bike_train %>% select(-c(dteday,instant)),
+            alpha = 1)
+```
+
+
+### Question L: 
+How many variables are selected by the lambda.min and lambda.1se versions of the model?
+Print the coefficient vectors for each.
+
+```{r}
+as.matrix(coef(lasso_mod, s = "lambda.min")) 
+```
+
+```{r}
+as.matrix(coef(lasso_mod, s = "lambda.1se")) 
+```
+There are only two coefficients selected, casual and registered that are significant in the printout. 
+
+### Question M:
+Extra Credit Discuss the differences across the ridge and lasso models. Which model would
+you prefer to use and why?
+
+
+Lasso is used when few variables matter a lot. Ridge should be used when there are many variables that matter a little. I prefer using lasso because it is easier to focus on a few significant variables in a dataset. 
