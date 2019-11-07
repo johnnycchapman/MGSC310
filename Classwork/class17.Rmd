@@ -1,0 +1,44 @@
+install.packages('titanic')
+install.packages('partykit')
+install.packages('rpart')
+
+library(titanic)
+data(titanic_train)
+View(titanic_train)
+library(partykit)
+
+library(tidyverse)
+
+titanic_df <- titanic_train %>% as_tibble() %>% 
+  mutate(Survived = if_else(Survived == 1, 
+                            "Survived", "Perished")) %>% 
+  mutate_if(is.character, as.factor)
+
+summary(titanic_df)
+
+
+titanic_tree <- ctree(Survived ~ Age + Sex,
+                      data = titanic_df)  
+titanic_tree  
+
+plot(titanic_tree)  
+
+
+library(rpart)
+install.packages('rpart.plot')  
+library(rpart.plot)  
+
+titanic_mod_rpart <- rpart(Survived ~ Age + Sex + Pclass + Parch,
+                           data = titanic_df,
+                           method = "class")
+plotcp(titanic_mod_rpart)  
+
+
+install.packages('visNetwork')  
+install.packages('sparkline')  
+
+library(visNetwork)
+
+visTree(titanic_mod_rpart)  
+  
+  
