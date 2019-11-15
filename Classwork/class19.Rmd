@@ -1,0 +1,63 @@
+install.packages('randomForest')
+library(randomForest)
+
+library(ElemStatLearn)
+data(SAheart)
+
+library(tidyverse)
+
+SAheart <- SAheart %>% mutate(chd = factor(chd, 
+                                           levels = c("0", "1")))
+
+train_idx <- sample(1:nrow(SAheart),
+                    size = 0.75 * nrow(SAheart))
+SA_train <- SAheart %>% slice(train_idx)
+SA_test <- SAheart %>% slice(-train_idx)                                           
+
+help(randomForest)
+
+rf_fit <- randomForest(chd ~ .,
+                       data = SA_train,
+                       type = classification,
+                       mtry = 3,
+                       ntree = 1000,
+                       importance = TRUE,
+                       localImp = TRUE)
+
+rf_fit
+
+
+plot(rf_fit, ylim = c(0, 1))
+
+# black - miscalculation rate overall
+# red - miscalculation rate for 0
+# green - miscalculation rate for 1
+
+# Explain random forest model
+
+install.packages('randomForestExplainer')
+library(randomForestExplainer)
+
+explain_forest(rf_fit, interactions = TRUE, data = SA_train)
+
+
+# variable importance plot
+varImpPlot(rf_fit)
+
+
+# tuning random forest
+rf_mods <- list()
+oob_err <- NULL
+
+for(mtry in 1:9){
+  rf_mod <- randomForest(chd ~ .,
+                         data = SA_train,
+                         type = classification,
+                         mtry = i,
+                         ntree = 1000)
+                         rf_mods[[i]] <- rf_mod
+                         oob_err[i] <- rf_mod$err.rate[1000]"
+                         cat(i, "")
+  
+}
+
