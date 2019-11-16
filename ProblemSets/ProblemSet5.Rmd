@@ -1,0 +1,209 @@
+---
+title: "Problem Set "
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library(MASS)
+library(tidyverse)
+library(plotROC)
+```
+
+### Question A:
+Run the code below to generate test and training sets for the Boston housing data. We will
+use these data to estimate logitistic models predicting whether a neighborhood has pricey or
+non-pricey homes.
+
+
+```{r}
+data(Boston)
+set.seed(1861)
+trainSize <- 0.75
+train_idx <- sample(1:nrow(Boston), size = floor(nrow(Boston) *
+trainSize))
+housing <- Boston %>% mutate(PriceyHome = ifelse(medv > 40, 1,
+0), chas = factor(chas))
+housing_train <- housing %>% slice(train_idx)
+housing_test <- housing %>% slice(-train_idx)
+```
+
+
+### Question B:
+Use the group_by command over PriceyHome, along with the command summarize_all(list(mean
+= mean), na.rm = TRUE) to generate average neighborhood differences across pricey and
+non-pricey homes. Where do pricey homes differ the most from non-pricey homes? Be sure
+to use the housing_train dataset.
+
+```{r}
+housing_train %>% group_by(PriceyHome) %>% 
+  summarize_all(list(mean
+= mean), na.rm = TRUE)
+
+```
+
+
+### Question C:
+Investigate, using at least three plots (using ggplot) the relationship between the variables that differential pricey from non-pricey homes. For each one, alter the color of the plot based on PriceyHome so that these homes stand out. What conclusions do you draw from these plots?
+
+
+```{r}
+ggplot(housing_train, aes(x = medv, y = crim, color = PriceyHome)) +
+  geom_point() + labs(x = "Median Value of Homes (in 1000s)", y = "Per Capita Crime Rate")
+```
+As we can see from this graph, the pricey homes are in places with low crimes rates per capita and high median value. 
+
+
+
+```{r}
+ggplot(housing_train, aes(x = zn, y = indus, color = PriceyHome)) +
+  geom_point() + labs(x = "Proportion of Zoned Land Over 25K", y = "Proportion of Non-Retail Business Acres")
+```
+From the graph, we can conclude most of the houses where the proportion of non-business acres is lower. For a few pricey homes, the higher the proportion of zoned land, the more expensive the house is. 
+
+
+```{r}
+ggplot(housing_train, aes(x = age, y = rm, color = PriceyHome)) +
+  geom_point() + labs(x = "Proportion of Units Built Berfore 1940", y = "Average Number of Rooms")
+```
+From the graph, we can see that houses that have an average number of rooms greater than about 
+
+
+### Question D:
+Estimate a logistic model with priceyHome on the left hand side (dependent variable) and a Charles River dummy (chas) on the right hand side (independent variable). Interpret the coefficient on chas. What impact does being adjacent to the Charles River have on a home’s
+value?
+
+
+```{r}
+logit_fit1 <- glm(PriceyHome ~ chas,
+                  data = housing_train,
+                  family = binomial)
+summary(logit_fit1)                  
+
+exp(logit_fit1$coefficients[2])
+```
+The value of chas means that houses by the river are 377% more likely to be classified as a PriceyHome. Being next to the Charles River greatly impacts the value of the house.
+
+### Question E: 
+Estimate the same model predicting whether a home is pricey as a function of crim, lstat, ptratio, zn, rm, rad and nox. Use the summary command over your model. Interpret the magnitude of the coefficients for chas, crim, ptratio, tax and rad. What do you conclude now about the amenity impact of living close to the Charles River?
+
+
+```{r}
+logit_fit2 <- glm(PriceyHome ~ crim + lstat + ptratio + zn + rm + rad + nox + tax,
+                  data = housing_train,
+                  family = binomial)
+summary(logit_fit2)       
+```
+The coefficient of chas means that houses the river are 377% more likely to be classified as a PriceyHome. Being by the river is a huge luxury and greatly increases the property's value. 
+
+### Question F: 
+Use the predict function to generate probability scores and class predictions (using a cutoff of 0.5) in the test and training sets.
+
+
+```{r}
+preds_train_DF <- data.frame(
+  scores = predict(logit_fit2, type = "response"),
+  housing_train
+)  
+
+preds_train_DF <- preds_train_DF %>% mutate(
+  class_preds = ifelse(scores > 0.5, 1, 0)
+)  
+
+logit_fit2_2 <- glm(PriceyHome ~ crim + lstat + ptratio + zn + rm + rad + nox + tax,
+                  data = housing_test,
+                  family = binomial)
+                  
+                  
+preds_test_DF <- data.frame(
+  scores = predict(logit_fit2_2, type = "response"),
+  housing_test
+)  
+
+
+preds_test_DF <- preds_test_DF %>% mutate(
+  class_preds = ifelse(scores > 0.5, 1, 0)
+)  
+```
+
+
+### Question G: 
+Calculate confusion matrices for the test and training sets. Calculate the accuracy, true positives, true negatives, sensitivity, specificity and false positive rate of the model in the test and training set.
+
+```{r}
+table(preds_train_DF$PriceyHome, preds_train_DF$class_preds)
+# TP 19/20
+train_TP <- (19/20)
+# TN 353/359
+train_TN <- (353/359)
+# FP 6/359
+train_FP <- (6/359)
+
+train_TP
+train_TN
+train_FP
+```
+
+
+```{r}
+table(preds_test_DF$PriceyHome, preds_test_DF$class_preds)
+# TP 4/10
+test_TP <- (6/6)
+# TN 117/117
+test_TN <- (117/117)
+# FP 0/117
+test_FP <- (0/117)
+
+
+test_TP
+test_TN
+test_FP
+```
+
+
+### Question H: 
+Based on the accuracy scores above, how should we adjust the probability cutoff? Are there any other factors we should consider when adjusting this cutoff?
+
+Based on the accuracy scores above we should adjust the probability for the training data to be a little higher, maybe 0.65. We will also have to adjust the test data to be higher maybe 0.8. This way we will be able to increase the accuracy for both the test and training data. 
+
+
+### Question I: 
+Plot the ROC curve for the test and training sets.
+
+```{r}
+train_ROC <- ggplot(preds_train_DF, aes(m = scores, d = PriceyHome)) +
+  geom_roc(labelsize = 3.5,
+           cutoffs.at = c(.99, .9, .7, .5, .3, .1, 0))
+train_ROC
+```
+
+```{r}
+test_ROC <- ggplot(preds_test_DF, aes(m = scores, d = PriceyHome)) +
+  geom_roc(labelsize = 3.5,
+           cutoffs.at = c(.99, .9, .7, .5, .3, .1, 0))
+test_ROC
+```
+
+### Question J: 
+Calculate the AUC for the models. What do you conclude regarding whether the model is over or underfit? How would you recommend adjusting the model if it is over or underfit?
+
+```{r}
+calc_auc(train_ROC)
+```
+
+```{r}
+calc_auc(test_ROC)
+```
+
+
+
+Based on the AUC, it appears the model is over fit. The true positives and true negatives were predicted exactly. There should be at least some error involved in the model. In order to make the model more fit, we can exclude some attributes. Our current model has so many attributes, making it overfit. 
