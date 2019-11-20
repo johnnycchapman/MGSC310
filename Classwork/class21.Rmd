@@ -1,0 +1,62 @@
+library(tidyverse)
+
+Customer_DF <- read.csv("Datasets/Wholesale customers data.csv")
+
+View(Customer_DF)
+
+
+install.packages('ggcorrplot')
+library(ggcorrplot)
+
+ggcorrplot(round(cor(Customer_DF),2),
+           type = "lower", insig = "blank",
+           show.diag = TRUE, lab = TRUE,
+           colors = c("red", "white", "blue"))
+
+
+library(cluster)           
+
+install.packages('factoextra')           
+
+library(factoextra)           
+
+
+?fviz_nbclust           
+
+
+# kink method
+fviz_nbclust(Customer_DF, kmeans, method = "wss")
+
+# about 5 for number of clusters
+
+# silhouette method
+fviz_nbclust(Customer_DF, kmeans, method = "silhouette")
+
+# about 2 or 3 number of clusters
+
+# gap statistic
+fviz_nbclust(Customer_DF, kmeans, method = "gap_stat")
+           
+install.packages('NbClust')           
+
+library(NbClust)
+
+Nb_cl <- NbClust(Customer_DF,
+                 diss = NULL,
+                 distance = "euclidean",
+                 min.nc = 2,
+                 max.nc = 15,
+                 method = "kmeans")
+
+# k means clustering
+
+kmeans3 = kmeans(Customer_DF, centers = 3, nstart = 25)
+
+kmeans3$centers
+
+clusplot(Customer_DF, 
+         kmeans3$cluster,
+         color = TRUE,
+         shade = FALSE,
+         labels = 5, lines = 2)
+         

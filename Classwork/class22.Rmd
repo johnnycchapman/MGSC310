@@ -1,0 +1,31 @@
+library(tidyverse)
+
+Customer_DF <- read_csv("Datasets/Wholesale customers data.csv")
+
+?prcomp
+
+pca_out <- prcomp(Customer_DF,
+                  scale = TRUE,
+                  center = TRUE)
+
+pca_out
+
+
+screeplot(pca_out,
+          type = "lines")
+
+
+install.packages("ggfortify")          
+
+library(ggfortify)
+
+
+autoplot(pca_out,
+         data = Customer_DF,
+         loadings = TRUE,
+         loadings.color = 'blue',
+         loadings.label = TRUE,
+         loadings.label_size = 1,
+         label = TRUE)
+         
+         
