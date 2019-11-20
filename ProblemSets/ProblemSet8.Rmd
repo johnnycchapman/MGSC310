@@ -1,0 +1,254 @@
+---
+title: "Problem Set 8"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library("tidyverse")
+library("readr")
+library(glmnet)
+library(glmnetUtils)
+library(caret)
+set.seed(1861)
+options(scipen = 10)
+
+```
+
+### Question A:
+We’ll again use the Bike Sharing Dataset at the UCI Machine Learning website. Follow the
+code below to download and clean the day.csv dataset.
+
+
+```{r}
+Bike_DF <- read_csv("~/Desktop/Chapman/FALL19/MGSC310/Datasets/Bike-Sharing-Dataset/day.csv")
+
+Bike_DF <- Bike_DF %>% mutate(weathersit = factor(weathersit),
+            season = factor(season), 
+            yr = factor(yr), 
+            month = factor(mnth),
+            holiday = factor(holiday), 
+            weekday = factor(weekday), 
+            workingday = factor(workingday))
+Bike_DF <- Bike_DF %>% mutate(temp_sq = temp * temp, atemp_sq = atemp *
+            atemp, hum_sq = hum * hum, 
+            windspeed_sq = windspeed * windspeed)
+train_idx <- sample(1:nrow(Bike_DF), size = 0.8 * floor(nrow(Bike_DF)))
+bike_train <- Bike_DF %>% slice(train_idx)
+bike_test <- Bike_DF %>% slice(-train_idx)
+```
+
+
+### Question B:
+Estimate a Lasso model predicting cnt as a function of season, holiday,workingday,weathersit,
+temp,temp_sq,hum,hum_sq,windspeed,windspeed_sq, mnth and yr. Store this as an object
+lasso_fit.
+
+```{r}
+lasso_fit <- 
+  cv.glmnet(cnt ~ season + holiday + workingday + weathersit + 
+            temp + temp_sq + hum + hum_sq + windspeed + windspeed_sq + mnth + yr, 
+            data = bike_train,
+            alpha = 1)
+
+```
+
+
+### Question C:
+Use the plot command over the fitted object. Describe the plot, being sure to label the two
+dashed vertical lines, and the numbers at the top of the plot.
+
+
+```{r}
+plot(lasso_fit)            
+```
+
+
+The graph shows the MSE for the given log(lambda) value. The first dotted vertical line in front of the 0 is the lambda.min. The second dotted vertical line is the lambda.1se. The numbers on the top are the number of variables. 
+
+
+
+Lambda.min
+```{r}
+lasso_fit$lambda.min
+```
+
+
+Lambda.1se
+```{r}
+lasso_fit$lambda.1se
+```
+
+### Question D:
+Use the coef() function to print the coefficients for the lasso model, being sure to use the
+round function to round to three digits.
+
+
+```{r}
+as.matrix(coef(lasso_fit)) %>% round(3)
+```
+
+
+### Question E: 
+Print the coefficients for the lambda.min and lambda.1se versions of the model using the
+coef function, again rounding to the 3rd digit.
+
+Lambda.min
+```{r}
+as.matrix(coef(lasso_fit, s = "lambda.min")) %>% round(3)
+```
+
+Lambda.1se
+```{r}
+as.matrix(coef(lasso_fit, s = "lambda.1se")) %>% round(3)
+```
+
+
+### Question F: 
+Create a grid of alphas between 0 and 1 of length 11 using the seq function. Use the
+cva.glmnet function to estimate an elasticNet model using this alpha grid, the bike_train
+dataset and the outcome and predictors used in the Lasso model. Use the print function
+over this stored object to show model summary information.
+
+
+```{r}
+alpha_grid <- seq(0, 1, length = 11)
+
+enet_mod <- cva.glmnet(cnt ~ season + holiday + workingday + weathersit + 
+                       temp + temp_sq + hum + hum_sq + windspeed + 
+                       windspeed_sq + mnth + yr,
+                       data = bike_train,
+                       alpha = alpha_grid)
+print(enet_mod)
+```
+
+
+### Question G: 
+Use the mindlossplot function over the elasticNet model. Describe the plot. What do you
+conclude from the model?
+
+```{r}
+minlossplot(enet_mod)
+```
+
+
+
+### Question H: 
+In your own words, describe how a Lasso model is different from a regular OLS model.
+
+The lasso model acts as a variable selector and displays a graph with log(lambda) by the mean squared error. The elastic net model helps find the optimal combination with the lowest MSE. The elastic net graph is the alpha value by the cross validation MSE.
+
+
+### Question I: 
+Estimate a regular OLS model over the bike train dataset using the same outcome and
+predictors as before. Use the summary command over the model. Note the R2 value.
+
+```{r}
+OLS_mod <- lm(cnt ~ season + holiday + workingday + weathersit + 
+                       temp + temp_sq + hum + hum_sq + windspeed + 
+                       windspeed_sq + mnth + yr,
+                       data = bike_train)
+summary(OLS_mod)
+```
+
+
+### Question J: 
+Use the Lasso, ElasticNet (at optimal alpha), and OLS model to predict into the test and
+training sets specifying that you want to use the lambda.min for the Lasso and ElasticNet
+models in the predict function. Calculate R2 and RMSE. Which model performs the best?
+
+
+Lasso
+
+R2
+```{r}
+# lasso
+# train
+preds_lasso_train <- data.frame(preds = predict(lasso_fit, 
+                         newdata = bike_train, 
+                         type = "response"), 
+                         count = bike_train$cnt)
+
+# test
+preds_lasso_test <- data.frame(preds = predict(lasso_fit, 
+                         newdata = bike_test, 
+                         type = "response"), 
+                         count = bike_test$cnt)                       
+                       
+                       
+#R2(preds_lasso_train$preds,bike_train$cnt)                        
+#R2(preds_lasso_test$preds,bike_test$cnt)
+                       
+```
+
+
+RMSE
+```{r}
+RMSE(preds_lasso_train$preds,bike_train$cnt) 
+RMSE(preds_lasso_test$preds,bike_test$cnt) 
+```
+
+Elastic Net
+
+R2 
+```{r}
+preds_enet_train <- data.frame(preds = predict(enet_mod, 
+                         newdata = bike_train, 
+                         type = "response",
+                         alpha = 0.7), 
+                         count = bike_train$cnt
+                         )                       
+
+
+preds_enet_test <- data.frame(preds = predict(enet_mod, 
+                         newdata = bike_test, 
+                         type = "response",
+                         alpha = 0.7), 
+                         count = bike_test$cnt
+                         )   
+
+
+#R2(preds_enet_train$preds,bike_train$cnt)
+#R2(preds_enet_test$preds,bike_test$cnt)
+```
+
+RMSE
+```{r}
+RMSE(preds_enet_train$preds,bike_train$cnt)
+RMSE(preds_enet_test$preds,bike_test$cnt)
+```
+
+
+OLS
+
+R2
+```{r}
+preds_OLS_train <- data.frame(preds = predict(OLS_mod, 
+                         newdata = bike_train, 
+                         type = "response"), 
+                         count = bike_train$cnt)
+
+# test
+preds_OLS_test <- data.frame(preds = predict(OLS_mod, 
+                         newdata = bike_test, 
+                         type = "response"), 
+                         count = bike_test$cnt)
+                         
+R2(preds_OLS_train$preds,bike_train$cnt)  
+R2(preds_OLS_test$preds,bike_test$cnt)
+```
+
+RMSE
+```{r}
+RMSE(preds_OLS_train$preds,bike_train$cnt) 
+RMSE(preds_OLS_test$preds,bike_test$cnt)
+```
