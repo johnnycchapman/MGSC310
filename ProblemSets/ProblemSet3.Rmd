@@ -1,0 +1,162 @@
+
+---
+title: "Problem Set 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman 
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library(readr)
+library('tidyverse')
+library('ggthemes')
+library('knitr')
+library('magrittr')
+```
+### Question 1, ISLR Chapter 2, question 3:
+![Graph sketch](/Users/johnnychapman/Downloads/sketch.jpg)
+
+b) The training MSE data decreases as flexibility increases because as the flexibility increases the function f fits the data more closely. The test MSE declines initially as flexibility increases, but then levels off and starts to increase. This happens when there is a small training MSE and large test MSE, that overfits the data. The function tries to find the patterns in the data even if data is caused by chance and not follow the properties of the function. The squared bias decreases as the variance increases. The bias is the tendency of an in-sample statistic to over or under estimate the statistic in the population. The Bayes error is constant so it is a parallel line.
+
+
+### Question A:
+Download the Top 5000 movies on IMDB from the following link: 
+
+
+```{r}
+movies <- read.csv("~/Desktop/Chapman/FALL19/MGSC310/Datasets/movie_metadata.csv")
+```
+
+
+### Question B:
+
+
+
+```{r}
+options(scipen = 10)
+
+movies <- movies %>% filter(budget < 400000000) %>% filter(content_rating != "",
+content_rating != "Not Rated")
+movies <- movies %>%
+mutate(genre_main = unlist(map(strsplit(as.character(movies$genres),"\\|"),1)),
+grossM = gross / 1000000,
+budgetM = budget / 1000000,
+profitM = grossM - budgetM,
+cast_total_facebook_likes000s = cast_total_facebook_likes / 1000)
+movies <- movies %>% mutate(genre_main = factor(genre_main) %>% fct_drop())
+
+```
+
+
+### Question C:
+Split the movies dataset into a testing and training set, with the training set 80% of the size of the original dataset. Be sure to use set.seed(1861) to ensure your results are comparable to mine and your classmates.
+
+```{r}
+set.seed(1861)
+train_idx <- sample(1:nrow(movies), 0.8 * nrow(movies))
+movies_train <- movies %>% slice(train_idx)
+movies_test <- movies %>% slice(-train_idx)
+```
+
+
+### Question D:
+How many rows are in the test and trainig datasets?
+
+```{r}
+dim(movies_train)
+dim(movies_test)
+```
+3,396 Rows in training data
+849 rows in test data
+
+### Question E:
+
+
+```{r}
+cormat <- cor(movies_train %>% select_if(is.numeric) %>% drop_na())
+print(cormat[, "profitM"])
+```
+There is a strong correlation between grossM and profitM. With a grossM correlation coefficient of 0.786.
+
+### Question F:
+Extra Credit. Use the corrplot package to produce a plot of the correlation matrix
+
+```{r}
+library('corrplot')
+corrplot(cormat)
+```
+
+
+
+### Question G:
+Let’s regress profitM against imdb_score and store this as mod1. Use the summary() function over mod1 to print the regerssion summary. Be sure to estimate our model against the training dataset.
+
+```{r}
+mod1 <- lm(profitM ~ imdb_score, data = movies_train)
+summary(mod1)
+```
+
+### Question H:
+Interpret the coefficient for imdb_score, being specific about the impact regarding magnitude and sign.
+
+This means that for every 1 point increase in imdb_score there is a $13 million increase in profit. 
+
+
+### Question I:
+What is the p-value associated with the estimate of imdb_score? In your own words, what does a p-value mean? What does this estimate p-value imply about the relationship between imdb_score and profit?
+
+The p-value is a statistic to find the significance of the results. This p-value is < 2.2e-16, which is less than 0.05 indicating you should reject the null hypothesis. 
+
+
+### Question J:
+Include cast_total_facebook_likes000s as a predictor in addition to imdb_score. Store this model as mod2 and use summary() to output the results.
+
+```{r}
+mod2 <- lm(profitM ~ imdb_score + cast_total_facebook_likes000s, data = movies_train)
+summary(mod2)
+```
+
+
+### Question K:
+What is the estimated impact of cast facebook likes on movie profits?
+
+
+This means that for every 1 like there is a $207.1 thousand increase in profit. 
+
+
+
+### Question L:
+What is the impact of content rating on a movie’s expected profit? To answer this question we will have to clean content_rating a little bit. Use the fct_lump() function to create factor levels for the four most common factor levels, leaving the rest as a category “other”. Call this variable rating_simple and store it in the movies_train data frame.
+
+```{r}
+movies_train %<>% mutate(rating_simple = 
+                     fct_lump(content_rating, n = 4))
+
+table(movies_train$rating_simple)
+```
+
+
+### Question M:
+Estimate a model with profitM on the left-hand-side and imdb_score, cast_total_facebook_likes000s and rating_simple on the right-hand side. Interpret the coefficient for rating_simpleR.
+
+```{r}
+mod2 <- lm(profitM ~ imdb_score + cast_total_facebook_likes000s + rating_simple, data = movies_train)
+summary(mod2)
+```
+The coefficient of rating_simpleR means that there is an expected $23.03 million decrease profit compared to the expected profit for a rating_simpleG. 
+
+
+### Question N:
+Why does the coefficient for G not appear in the regression table above?
+
+The coefficient for G does not appear because R uses rating_simpleG as a reference.

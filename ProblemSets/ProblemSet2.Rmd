@@ -1,0 +1,186 @@
+---
+title: "Problem Set 2"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Johnny Chapman
+Hersh
+MGSC 310
+
+## Load Packages
+
+```{r packages}
+library(readr)
+library('tidyverse')
+library('ggthemes')
+```
+### Question 1, ISLR Chapter 2, question 2:
+2.
+A) Regression and interference because you are looking at what factors contribute to CEO Salary. n = 500 p = 4
+
+B) Classification and prediction because we want to predict if the company is going to fail or be a success. This means we group our output into a class. n = 20 p = 13
+
+C) Regression and prediction because we are trying to predict the % change in US/Euro Exchange rate based on weekly data from US, British, and German stock markets. n = 52 (% change weekly) p = 4
+
+
+### Question 2, ISLR Chapter 2, question 4:
+4. 
+A) Classification
+1. Email Spam. Whether an email should be considered spam and put in junk folder. Interference
+
+2. Speech Recognition on the phone. Where your name is a class and is compared to the name on file. Interference
+
+3. Credit Card Applications categorized into good, bad or okay credit. 
+
+B) Regression
+1. Finding how much money you are going to need for gas on your upcoming road trip based on how many miles you went and how much it cost previous times. This is a prediction problem.
+
+2. Forecasting Revenues and Expenses. This may be used to see the main drivers of the business. This can help in predicting future revenue 
+
+3. Predict housing prices based on location, number of bedrooms, number of bathrooms, and floors.
+
+C) Cluster
+1. Fantasy Football - Players on your team, points by player weekly, winning players. Little data at the start of season to predict which players are going to perform.
+
+2. Identifying fake news based on content. It examines the words of the article and then clusters them. For this problem, certain words are more common in fake news articles. And when the percentage of those words is high, there is greater chance it is fake news.
+
+3. Identifying criminal activity. This mean finding out what is criminal activity and what is not. 
+
+
+### Question A:
+Download the Top 5000 movies on IMDB from the following link: 
+
+
+```{r}
+movies <- read.csv("Datasets/movie_metadata.csv")
+```
+
+
+### Question B:
+Run the code below to filter out films with unreasonably large budgets. Also use the code to create new variables (mutate) that are simplified versions of the genres and budget variables.
+
+
+```{r}
+movies <- movies %>% filter(budget < 4e+08)
+movies <- movies %>% mutate(genre_main = unlist(map(strsplit(as.character(movies$genres),
+  "\\|"), 1)), grossM = gross/1e+06, budgetM = budget/1e+06)
+movies <- movies %>% mutate(genre_main = factor(genre_main) %>%
+  fct_drop())
+
+```
+
+
+### Question C:
+Use the mutate function to generate profitM which is the difference between a movie’s gross and its budget, and the variable ROI which is the return on investment, specifically profit as a ratio of budget.
+
+
+```{r}
+movies <- movies %>% mutate(profitM = grossM - budgetM, ROI = profitM / budgetM)
+```
+
+
+### Question D:
+What is the average ROI for firms in the dataset? Use the function geom_histogram() to create a histogram of ROI for movies in the database.
+
+```{r}
+movies <- movies %>% drop_na(ROI)
+mean(movies$ROI, na.rm = TRUE)
+```
+The average return on investments is $5.273 million. 
+```{r}
+ggplot(movies, aes(movies$ROI)) +
+  geom_histogram() + labs(x = "Return on Investment", y = "Count", title = "Histogram of ROI")
+
+```
+
+
+### Question E: 
+From the plot above, it should be clear several outliers throw off the plot. Use the filter command to filter out films that have an ROI greater than 10. Just to be careful, count the number of films which match this criteria using the count() function.
+
+
+```{r}
+movies <- movies %>% filter(ROI < 10)
+count(movies, vars = "ROI < 10")
+```
+
+
+### Question F: 
+Use the group_by() function to aggregate films by genre_main and create mean ROI by genre using the summarize() command. Which film genres have the highest return on investment (ROI)? (Note we can also create standard errors by including in the summarize() command
+se_ROI_genre = sd(ROI, na.rm = TRUE)/sqrt(n()))
+```{r}
+movies_genre_main <- movies %>% group_by(genre_main) %>% 
+  summarize(avg_ROI_genre = mean(ROI, na.rm = TRUE), 
+            se_ROI_genre = sd(ROI, na.rm = TRUE)/sqrt(n()), n = n())
+
+movies_genre_main
+
+```
+
+
+### Question G: 
+Use ggplot to create plots of the average ROI by genre using geom_point(). Note you can also use geom_errorbar() to create standard error bars using the code below.
+# geom_errorbar(mapping = aes(ymin = avg_ROI_genre -
+# se_ROI_genre, ymax = avg_ROI_genre + se_ROI_genre),...
+
+
+```{r}
+ggplot(movies_genre_main, aes(x = genre_main, y = avg_ROI_genre)) +
+    geom_point() + geom_errorbar(mapping = aes(ymin = avg_ROI_genre -
+    se_ROI_genre, ymax = avg_ROI_genre + se_ROI_genre)) + labs(x = "Genres", y = "Average ROI by Genre")                                    
+```
+
+
+
+### Question H: 
+Use the summarize command to compute averages by actor_1_name for ROI and profit. Also within your summarize command calculate num_films as the number of films by actor. Use the arrange() command to sort the dataframe in descending order by average actor ROI. Finally use slice() to print the first twenty rows. Which three actors have the highest ROIs?
+
+
+```{r}
+actor_summary <- movies %>% group_by(actor_1_name) %>% 
+  summarize(avg_ROI_actor = mean(ROI, na.rm = TRUE), 
+            avg_profitM_actor = mean(profitM, na.rm = TRUE), 
+            num_films = n()) %>% 
+  arrange(desc(avg_ROI_actor)) 
+
+
+actor_summary <- actor_summary %>% drop_na(avg_profitM_actor)
+actor_summary
+```
+
+
+### Question I: 
+Use geom_point() to plot the 30 actors with the highest ROI. Note we can use the top_n() command to plot only the top 30 actors. We can also use fct_reorder() to order the actors by highest ROI.
+library(forcats)
+
+```{r}
+library(forcats)
+
+
+ggplot(data = actor_summary %>% top_n(30, wt = avg_ROI_actor), 
+       mapping = aes(x = fct_reorder(actor_1_name, avg_ROI_actor) %>% 
+                       fct_drop(), y = avg_ROI_actor)) + 
+        geom_point() + coord_flip() + 
+  labs(x = "Actor Name",y = "", title = "Average ROI for Top 30 Actors")
+
+```
+
+
+### Question J: 
+Plot the 30 actors with the lowest return on investment
+
+```{r}
+ggplot(data = actor_summary %>% top_n(-30, wt = avg_ROI_actor), 
+       mapping = aes(x = fct_reorder(actor_1_name, avg_ROI_actor) %>% 
+                       fct_drop(), y = avg_ROI_actor)) + 
+        geom_point() + coord_flip() + 
+  labs(x = "Actor Name",y = "", title = "Average ROI for Bottom 30 Actors")
+```
+
+
+
+
+
